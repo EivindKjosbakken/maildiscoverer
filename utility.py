@@ -64,7 +64,7 @@ def authorize_gmail_api():
           )
           
           # creds = flow.run_local_server(port=8080)
-          creds = flow.run_console()
+          creds = flow.run_local_server(bind_addr="0.0.0.0", open_browser=False, port=8080)
         # Save the credentials for the next run
         with open("token.json", "w") as token: 
           token.write(creds.to_json())
