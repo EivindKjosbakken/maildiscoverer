@@ -66,16 +66,6 @@ if "flow" not in st.session_state:
 
 
 
-
-def login():
-    authorize_gmail_api()
-
-
-if st.query_params.get('code', None):
-    authenticate_user()
-
-
-
 # Logout function
 def logout():
     """Logs the user out by deleting the token and clearing session data."""
@@ -90,6 +80,18 @@ def logout():
     else:
         st.warning("You are not logged in.")
     st.rerun()
+
+def login():
+    logout() # ensure clean slate before logging in
+    authorize_gmail_api()
+
+
+if st.query_params.get('code', None):
+    authenticate_user()
+
+
+
+
 
 
 if st.button("Login"):
