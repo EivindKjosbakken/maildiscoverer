@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 from rag_agent import RagAgent
 from pinecone_utility import PineconeUtility
-from utility import authorize_gmail_api
+from utility import authorize_gmail_api, authenticate_user
 
 # PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
 # OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -61,33 +61,50 @@ if "most_relevant_mails" not in st.session_state:
 if "selected_mail" not in st.session_state:
     st.session_state.selected_mail = None
 
+if "flow" not in st.session_state:
+    st.session_state.flow = None
+
+
+
 
 def login():
-    creds = authorize_gmail_api()
-    st.session_state.creds = creds
-    st.success("Login successful")
+    authorize_gmail_api()
+
+
+if st.query_params.get('code', None):
+    authenticate_user()
+
 
 
 # Logout function
 def logout():
     """Logs the user out by deleting the token and clearing session data."""
-    st.experimental_set_query_params()
+    # st.experimental_set_query_params()
+
+    st.session_state.user_email = None
+    st.session_state.creds = None
+
     if os.path.exists("token.json"):
         os.remove("token.json")
-        st.session_state.user_email = None
         st.success("Logged out successfully!")
     else:
         st.warning("You are not logged in.")
+    st.rerun()
 
 
 if st.button("Login"):
     login()
     # reload
-    st.rerun()
 
 if st.button("Logout"):
     logout()
-    st.rerun()
+    st.query_params.clear()
+
+
+if st.button("test"):
+    pass
+        
+
 
 
 if st.button("Upload mail contents"):

@@ -59,6 +59,7 @@ def authorize_gmail_api():
       creds = None
       if os.path.exists("token.json"):
         creds = Credentials.from_authorized_user_file("token.json", SCOPES)
+        st.info("Alreadt logged in")
       # If there are no (valid) credentials available, let the user log in.
       if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
@@ -68,47 +69,66 @@ def authorize_gmail_api():
               CLIENT_CONFIG, SCOPES
           )
           flow.redirect_uri = 'https://maildiscoverer.streamlit.app/'
+        #   flow.redirect_uri = 'http://localhost:8080/' #TODO change when in prod
 
-          # Generate URL for request to Google's OAuth 2.0 server.
-          # Use kwargs to set optional request parameters.
           authorization_url, state = flow.authorization_url(
               access_type='offline',
               include_granted_scopes='true',
               prompt='consent')
-          
-          # Redirect user to Google's OAuth 2.0 server
-          st.markdown(f"[Click here to authorize the app]({authorization_url})")
-          
-          # creds = flow.run_local_server(port=8080) # NOTE For local
-          logger.info("\n\nGEtting auth code\n\n")
-          auth_code = st.experimental_get_query_params().get('code')
-          logger.info(f"\nAUTH CODE {auth_code}\n")
-          if auth_code:
-              # Fetch the token using the authorization code
-              flow.fetch_token(code=auth_code[0])
-
-              # Get the credentials
-              creds = flow.credentials
-
-              # Save the credentials for future use
-              with open('token.json', 'w') as token_file:
-                  token_file.write(creds.to_json())
-              st.success("Authorization successful! Credentials have been saved.")
 
 
-        # Save the credentials for the next run
-        if (creds is not None):
-          logger.info(f"\nCREDS {creds}\n")
-          with open("token.json", "w") as token: 
-            token.write(creds.to_json())
-          # get user email
-          user_email = get_user_info(creds)
-          st.session_state.user_email = user_email
+          st.markdown(
+            f"""
+            <style>
+            .custom-button {{
+                display: inline-block;
+                background-color: #4CAF50; /* Green background */
+                color: white !important;  /* White text */
+                padding: 10px 24px;
+                text-align: center;
+                text-decoration: none;
+                font-size: 16px;
+                border-radius: 5px;
+                margin-top: 5px; /* Reduce space above the button */
+                margin-bottom: 5px; /* Reduce space above the button */
+            }}
+            .custom-button:hover {{
+                background-color: #45a049;
+            }}
+            </style>
+            <a href="{authorization_url}" target="_self" class="custom-button">Authorize with Google</a>
+            """,
+            unsafe_allow_html=True
+        )
+            
 
-        else: logger.info("\nNo credentials were returned\n")
+def authenticate_user():
+    """after loggin in with google, you have a code in the url. This function retrieves the code and fetches the credentials and authenticates user"""
+    auth_code = st.query_params.get('code', None)
+    if auth_code is not None:
+        logger.info("INSIDE CODE")
+        from utility import CLIENT_CONFIG
+        
+        # make a new flow to fetch tokens
+        flow = InstalledAppFlow.from_client_config(
+                CLIENT_CONFIG, SCOPES, 
+            )
+        flow.redirect_uri = 'http://localhost:8080/' #TODO change when in prod
+        
+        flow.fetch_token(code=auth_code)
+        st.query_params.clear()
+        creds = flow.credentials
+        if creds:
+            # Save the credentials for future use
+            with open('token.json', 'w') as token_file:
+                token_file.write(creds.to_json())
+            st.success("Authorization successful! Credentials have been saved.")
 
-
-
-      return creds
-
-
+            # Save the credentials for the next run
+            with open("token.json", "w") as token: 
+                token.write(creds.to_json())
+            # get user email
+            user_email = get_user_info(creds)
+            st.session_state.user_email = user_email
+            st.rerun()
+    else: st.error("Could not log in user")
