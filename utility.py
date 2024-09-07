@@ -116,6 +116,7 @@ def authenticate_user():
         st.query_params.clear()
         creds = flow.credentials
         if creds:
+            st.session_state.creds = creds
             # Save the credentials for future use
             with open('token.json', 'w') as token_file:
                 token_file.write(creds.to_json())

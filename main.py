@@ -101,12 +101,6 @@ if st.button("Logout"):
     st.query_params.clear()
 
 
-if st.button("test"):
-    pass
-        
-
-
-
 if st.button("Upload mail contents"):
     st.info("While the app is in testing, only the latest 100 emails will be uploaded")
     result_boolean = pinecone_utility.upload_email_content(index, user_email=st.session_state.user_email, max_emails=MAX_EMAILS)
