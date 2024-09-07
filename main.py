@@ -74,6 +74,7 @@ def logout():
     if os.path.exists("token.json"):
         os.remove("token.json")
         st.session_state.user_email = None
+        st.set_query_params()
         st.success("Logged out successfully!")
     else:
         st.warning("You are not logged in.")
