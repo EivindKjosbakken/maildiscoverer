@@ -8,3 +8,4 @@ streamlit
 python-dotenv
 tqdm
 langchain
+langchain-openai
