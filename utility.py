@@ -12,9 +12,14 @@ from tqdm.auto import tqdm
 from pinecone import Pinecone
 import json
 
+import logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 from dotenv import load_dotenv
 load_dotenv()
 from safe_constants import SCOPES
+
 
 
 os.environ['OAUTHLIB_RELAX_TOKEN_SCOPE'] = '1' # avoids error being thrown for duplicate scopes (doesnt matter for this use case)
@@ -80,9 +85,11 @@ def authorize_gmail_api():
           
           # creds = flow.run_local_server(port=8080) # NOTE For local
         # Save the credentials for the next run
-        with open("token.json", "w") as token: 
-          token.write(creds.to_json())
-
+        if (creds is not None):
+          logger.info(f"\nCREDS {creds}\n")
+          with open("token.json", "w") as token: 
+            token.write(creds.to_json())
+        else: logger.info("\nNo credentials were returned\n")
       # get user email
       user_email = get_user_info(creds)
       st.session_state.user_email = user_email
