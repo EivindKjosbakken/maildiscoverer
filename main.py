@@ -91,8 +91,8 @@ if st.button("Logout"):
 
 if st.button("Upload mail contents"):
     st.info("While the app is in testing, only the latest 100 emails will be uploaded")
-    pinecone_utility.upload_email_content(index, user_email=st.session_state.user_email, max_emails=MAX_EMAILS)
-    st.success("Emails uploaded successfully")
+    result_boolean = pinecone_utility.upload_email_content(index, user_email=st.session_state.user_email, max_emails=MAX_EMAILS)
+    if result_boolean: st.success("Emails uploaded successfully")
 
 
 st.write("## Query for specific emails (returns specific emails you are looking for)")
@@ -192,8 +192,8 @@ def render_mail(selected_mail):
     <div class="email-box">
         <div class="email-header">Subject: <span>{email_subject}</span></div>
         <div class="email-subheader">From: <span>{email_sender}</span> | Date: <span>{email_date}</span></div>
-        <div class="email-content"><span>{email_content}</span></div>
         <a href="{email_link}" target="_blank" class="email-link">Open Email in Gmail</a>
+        <div class="email-content"><span>{email_content}</span></div>
     </div>
     """, unsafe_allow_html=True)
 
