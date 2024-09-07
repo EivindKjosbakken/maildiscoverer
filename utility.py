@@ -28,6 +28,15 @@ pc = Pinecone(api_key=PINECONE_API_KEY)
 openai_client = OpenAI()
 
 
+from safe_constants import PROJECT_ID, AUTH_URI, TOKEN_URI, AUTH_PROVIDER_X509_CERT_URL
+CLIENT_ID = st.secrets["GMAIL_API_CREDENTIALS"]["CLIENT_ID"]
+CLIENT_SECRET = st.secrets["GMAIL_API_CREDENTIALS"]["CLIENT_SECRET"]
+
+CLIENT_CONFIG = {
+     "web":{"client_id":CLIENT_ID,"project_id":PROJECT_ID,"auth_uri":AUTH_URI,"token_uri":TOKEN_URI,"auth_provider_x509_cert_url":AUTH_PROVIDER_X509_CERT_URL,"client_secret":CLIENT_SECRET,"redirect_uris":["http://localhost:8080/"],"javascript_origins":["http://localhost:8080"]}
+     }
+
+
 def get_user_info(creds):
     # Build the OAuth2 service to get user info
     oauth2_service = build('oauth2', 'v2', credentials=creds)
@@ -50,12 +59,16 @@ def authorize_gmail_api():
         if creds and creds.expired and creds.refresh_token:
           creds.refresh(Request())
         else:
-          flow = InstalledAppFlow.from_client_secrets_file(
-              "credentials.json", SCOPES
+          # flow = InstalledAppFlow.from_client_secrets_file(
+          #     "credentials.json", SCOPES
+          # )
+          flow = InstalledAppFlow.from_client_config(
+              CLIENT_CONFIG, SCOPES
           )
+          
           creds = flow.run_local_server(port=8080)
         # Save the credentials for the next run
-        with open("token.json", "w") as token:
+        with open("token.json", "w") as token: 
           token.write(creds.to_json())
 
       # get user email
