@@ -10,13 +10,29 @@ from googleapiclient.discovery import build
 from openai import OpenAI
 from tqdm.auto import tqdm
 from pinecone import Pinecone
+import json
 
-SCOPES = ["https://www.googleapis.com/auth/gmail.readonly"]
+from dotenv import load_dotenv
+load_dotenv()
+from safe_constants import SCOPES
+
+
+os.environ['OAUTHLIB_RELAX_TOKEN_SCOPE'] = '1' # avoids error being thrown for duplicate scopes (doesnt matter for this use case)
+
 PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 pc = Pinecone(api_key=PINECONE_API_KEY)
 openai_client = OpenAI()
 
+
+def get_user_info(creds):
+    # Build the OAuth2 service to get user info
+    oauth2_service = build('oauth2', 'v2', credentials=creds)
+    
+    # Get user info
+    user_info = oauth2_service.userinfo().get().execute()
+
+    return user_info.get('email')
 
 
 def authorize_gmail_api():
@@ -34,10 +50,14 @@ def authorize_gmail_api():
           flow = InstalledAppFlow.from_client_secrets_file(
               "credentials.json", SCOPES
           )
-          creds = flow.run_local_server(port=0)
+          creds = flow.run_local_server(port=8080)
         # Save the credentials for the next run
         with open("token.json", "w") as token:
           token.write(creds.to_json())
-      else:
-         st.warning("You are already logged in")
+
+      # get user email
+      user_email = get_user_info(creds)
+      st.session_state.user_email = user_email
       return creds
+
+

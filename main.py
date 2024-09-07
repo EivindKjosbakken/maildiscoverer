@@ -11,6 +11,11 @@ from openai import OpenAI
 from tqdm.auto import tqdm
 from pinecone import Pinecone
 import html  # To escape special characters
+import json
+
+import logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 from rag_agent import RagAgent
@@ -27,16 +32,25 @@ rag_agent = RagAgent(index)
 pinecone_utility = PineconeUtility(index)    
 
 
-MAX_EMAILS = 5 # TODO INCREASE AFTER TESTING
-
-st.title("Hello world")
-
-SCOPES = ["https://www.googleapis.com/auth/gmail.readonly"]
+MAX_EMAILS = 100 # TODO INCREASE AFTER TESTING
+K_MAILS_TO_RETURN = 5
 
 
-      
+if "user_email" in st.session_state and st.session_state.user_email is not None:
+    st.title(f"Hello {st.session_state.user_email}")
+else:
+    st.title("Welcome to the Email Assistant")
+
+from dotenv import load_dotenv
+load_dotenv()
+
+from safe_constants import SCOPES
+
 if "creds" not in st.session_state:
   st.session_state.creds = None
+
+if "user_email" not in st.session_state:
+    st.session_state.user_email = None
 
 if "most_relevant_mails" not in st.session_state:
   st.session_state.most_relevant_mails = None
@@ -48,36 +62,83 @@ if "selected_mail" not in st.session_state:
 def login():
     creds = authorize_gmail_api()
     st.session_state.creds = creds
+    st.success("Login successful")
 
+
+# Logout function
+def logout():
+    """Logs the user out by deleting the token and clearing session data."""
+    if os.path.exists("token.json"):
+        os.remove("token.json")
+        st.session_state.user_email = None
+        st.success("Logged out successfully!")
+    else:
+        st.warning("You are not logged in.")
 
 
 if st.button("Login"):
     login()
+    # reload
+    st.rerun()
+
+if st.button("Logout"):
+    logout()
+    st.rerun()
 
 
 if st.button("Upload mail contents"):
-    pinecone_utility.upload_email_content(index, max_emails=MAX_EMAILS)
+    st.info("While the app is in testing, only the latest 100 emails will be uploaded")
+    pinecone_utility.upload_email_content(index, user_email=st.session_state.user_email, max_emails=MAX_EMAILS)
     st.success("Emails uploaded successfully")
 
 
 st.write("## Query for specific emails (returns specific emails you are looking for)")
-prompt_specific_mail = st.text_input("Enter what emails you are looking for")
-if st.button("Get specific mails by content"):
-    pass # TODO only query for most similar emails
+prompt = st.text_input("Enter what emails you are looking for")
 
-    response = rag_agent.query_pinecone_index(prompt_specific_mail, top_k=2, include_metadata=True)
-    mails = [response["matches"][i]["metadata"] for i in range(len(response["matches"]))]
 
-    st.session_state.most_relevant_mails = mails
-    st.session_state.selected_mail = mails[0] # select the first mail by default (most similar)
- 
+col1, col2 = st.columns([1, 1])
+with col1:
+    if st.button("Get specific mails by content"):
+        if st.session_state.creds is None or st.session_state.user_email is None: st.error("Please login first")
+        elif prompt == "": st.error("Please enter a valid query")
+        else:
+            st.session_state.rag_response = None
+            mails = rag_agent.find_most_relevant_emails(prompt, top_k=K_MAILS_TO_RETURN)
+            if (mails and len(mails) > 0):
+                st.session_state.most_relevant_mails = mails
+                st.session_state.selected_mail = mails[0] # select the first mail by default (most similar)
+                st.session_state.selected_mail_index = 0
+
+                st.rerun()
+with col2:
+    if st.button("Ask general questions regarding emails"):
+        if st.session_state.creds is None or st.session_state.user_email is None: st.error("Please login first")
+        elif prompt == "": st.error("Please enter a valid query")
+        else:
+            response_text, mails = rag_agent.run_rag(prompt, K_MAILS_TO_RETURN)
+            if (response_text and len(response_text) > 0 and mails and len(mails) > 0):
+                st.session_state.rag_response = response_text
+                st.session_state.most_relevant_mails = mails
+                st.session_state.selected_mail = mails[0] # select the first mail by default (most similar)
+                st.session_state.selected_mail_index = 0
+
+                st.rerun()
+                
+
+
+
+# --------------------------------------------------------
+# General code
+# --------------------------------------------------------
 
 def render_mail(selected_mail):
     email_subject = html.escape(selected_mail["subject"])
     email_sender = html.escape(selected_mail["sender"])
     email_date = html.escape(selected_mail["date"])
     email_content = html.escape(selected_mail["text"])
-    # Custom CSS for styling the box
+    email_link = selected_mail["email_link"]  # Get the email link from the selected_mail dictionary
+
+    # Custom CSS for styling the box and button
     st.markdown(
         """
         <style>
@@ -103,32 +164,123 @@ def render_mail(selected_mail):
             font-size: 14px;
             margin-bottom: 5px;
         }
+        .email-link {
+            font-size: 16px;
+            margin-top: 20px;
+            display: inline-block;
+            background-color: #ff8c00; /* Orange background */
+            color: white; /* White text */
+            padding: 10px 20px;
+            text-align: center;
+            border-radius: 8px;
+            text-decoration: none;
+            transition: background-color 0.3s ease; /* Smooth transition */
+        }
+        .email-link:hover {
+            background-color: #e67600; /* Darker orange on hover */
+        }
         </style>
         """,
         unsafe_allow_html=True
     )
 
-    # Display the email inside a styled box
+    # Display the email inside a styled box with the clickable button link
     st.markdown(f"""
     <div class="email-box">
         <div class="email-header">Subject: <span>{email_subject}</span></div>
         <div class="email-subheader">From: <span>{email_sender}</span> | Date: <span>{email_date}</span></div>
         <div class="email-content"><span>{email_content}</span></div>
+        <a href="{email_link}" target="_blank" class="email-link">Open Email in Gmail</a>
     </div>
     """, unsafe_allow_html=True)
 
-if st.session_state.most_relevant_mails and st.session_state.selected_mail:
-   render_mail(st.session_state.selected_mail)
+
+
+
+def update_selected_mail():
+    st.session_state.selected_mail = st.session_state.most_relevant_mails[st.session_state.selected_mail_index]
+
+if 'selected_mail_index' not in st.session_state:
+    st.session_state.selected_mail_index = 0  # Start at the most relevant email (index 0)
+
+def render_most_relevant_mails():
+    col1, col_mid, col2 = st.columns([1, 1, 1])
+    with col1:
+        if st.button("← Previous"):
+            if st.session_state.selected_mail_index == 0: st.warning("No more emails to show")
+            else:
+                st.session_state.selected_mail_index -= 1
+                update_selected_mail()
+
+    with col2:
+        if st.button("Next →"):
+            if st.session_state.selected_mail_index == len(st.session_state.most_relevant_mails) - 1: st.warning("No more emails to show")
+            else:
+                st.session_state.selected_mail_index += 1
+                update_selected_mail()
+
+    with col_mid:
+        st.write(f"Email {st.session_state.selected_mail_index + 1}/{len(st.session_state.most_relevant_mails)}")
+
+
+    # Update selected mail if not already set
+    if "selected_mail" not in st.session_state:
+        update_selected_mail()
+    
+    # Render the currently selected email
+    if st.session_state.selected_mail: render_mail(st.session_state.selected_mail)
+
+# --------------------------------------------------------
+# Full RAG to answer questions
+# --------------------------------------------------------
+
+if "rag_response" not in st.session_state:
+    st.session_state.rag_response = None
+
+if st.session_state.rag_response:
+    st.write("## RAG response")
+    st.write(st.session_state.rag_response)
+
+    # TODO render emails used to answer the question
+
+
+# --------------------------------------------------------
+# Display the most relevant emails
+# --------------------------------------------------------
+
+
+if st.session_state.most_relevant_mails is not None:
+    st.write("## Most relevant emails")
+    st.write(f"Emails listed in descending order of relevance for query: '{prompt}'")
+
+    render_most_relevant_mails()
 
 
 
 
+# Custom HTML for a green button
+button_html = """
+    <style>
+    .button {
+        background-color: #4CAF50; /* Green */
+        border: none;
+        color: white;
+        padding: 15px 32px;
+        text-align: center;
+        text-decoration: none;
+        display: inline-block;
+        font-size: 16px;
+        cursor: pointer;
+        border-radius: 12px;
+        margin: 20px 2px;
+        margin-top: 100px;
+            
+    }
+    </style>
+    <a href="https://buymeacoffee.com/kjosbakken" target="_blank">
+        <button class="button">Buy me a coffee</button>
+    </a>
+    """
 
-st.write("## Ask questions about your emails (provides answers to your questions, and the emails containing the answer)")
-prompt_question_answering = st.text_input("Enter some text")
-if st.button("Query your emails"):
-   pass # #TODO do full rag
-
-
-
-# TODO ha noe prompt formattering ellerno
+# Display the button
+st.markdown(button_html, unsafe_allow_html=True)

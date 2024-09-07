@@ -4,6 +4,10 @@ import streamlit as st
 from googleapiclient.discovery import build
 from rag_agent import RagAgent
 
+import logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 
 
 class PineconeUtility():
@@ -27,7 +31,7 @@ class PineconeUtility():
 
 
 	def _combine_vector_and_text(self,
-		documents: list[any], doc_embeddings: list[list[float]]
+		documents: list[any], doc_embeddings: list[list[float]], user_email: str = None
 	) -> list[dict[str, any]]:
 		"""
 		Process a list of documents along with their embeddings.
@@ -46,6 +50,7 @@ class PineconeUtility():
 			doc_date = doc["date"]
 			doc_sender = doc["from"]
 			doc_subject = doc["subject"]
+			doc_email_link = doc["email_link"]
 
 
 			# Generate a unique ID based on the text content
@@ -55,7 +60,7 @@ class PineconeUtility():
 			data_item = {
 				"id": doc_id,
 				"values": embedding,
-				"metadata": {"text": doc_text, "date": doc_date, "sender": doc_sender, "subject": doc_subject},  # Include the text as metadata
+				"metadata": {"user_email": user_email, "text": doc_text, "date": doc_date, "sender": doc_sender, "subject": doc_subject, "email_link": doc_email_link},  # Include the text as metadata
 			}
 
 			# Append the data item to the list
@@ -114,7 +119,8 @@ class PineconeUtility():
 				'id': msg['id'],
 				'date': next((header['value'] for header in headers if header['name'] == 'Date'), None),
 				'from': next((header['value'] for header in headers if header['name'] == 'From'), None),
-				'subject': next((header['value'] for header in headers if header['name'] == 'Subject'), None)
+				'subject': next((header['value'] for header in headers if header['name'] == 'Subject'), None),
+				"email_link": f"https://mail.google.com/mail/u/0/#inbox/{email['id']}"
 			}
 			email_details.append(email_data)
 			progress_bar2.progress((idx + 1) / len(all_emails))  # Progress bar update
@@ -123,8 +129,7 @@ class PineconeUtility():
 		return email_details
 	
 
-
-	def upload_email_content(self, index, max_emails=100):
+	def upload_email_content(self, index, user_email=None, max_emails=100):
 		# Build Gmail service
 		if not st.session_state.creds: 
 			st.error("Please login first")
@@ -138,10 +143,15 @@ class PineconeUtility():
 		# embed emails
 		embeddings = []
 		for idx, email in tqdm(enumerate(emails), desc="Creating embeddings"):
-			embeddings.append(self.rag_agent.get_embedding(email["snippet"]))
-			# Update the progress bar and status text
-			progress_bar.progress((idx + 1) / len(emails))  # Progress bar update
 			status_text.text(f"Creating embedding {idx + 1} of {len(emails)}")
+			if email["snippet"] is None or email["snippet"] == "": continue
+			try:
+				embeddings.append(self.rag_agent.get_embedding(email["snippet"]))
+				# Update the progress bar and status text
+				progress_bar.progress((idx + 1) / len(emails))  # Progress bar update
+			except:
+				logger.info(f"Error embedding email {idx}")
+
 			
-		data_with_meta_data = self._combine_vector_and_text(documents=emails, doc_embeddings=embeddings) 
+		data_with_meta_data = self._combine_vector_and_text(documents=emails, doc_embeddings=embeddings, user_email=user_email) 
 		self._upsert_data_to_pinecone(index, data_with_metadata=data_with_meta_data)
