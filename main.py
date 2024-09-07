@@ -79,7 +79,6 @@ def logout():
         st.success("Logged out successfully!")
     else:
         st.warning("You are not logged in.")
-    st.rerun()
 
 def login():
     logout() # ensure clean slate before logging in
@@ -96,11 +95,12 @@ if st.query_params.get('code', None):
 
 if st.button("Login"):
     login()
-    # reload
 
 if st.button("Logout"):
     logout()
     st.query_params.clear()
+    st.rerun()
+
 
 
 if st.button("Upload mail contents"):
