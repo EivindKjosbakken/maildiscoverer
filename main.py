@@ -22,8 +22,11 @@ from rag_agent import RagAgent
 from pinecone_utility import PineconeUtility
 from utility import authorize_gmail_api
 
-PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+# PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
+# OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+PINECONE_API_KEY = st.secrets["PINECONE_API_KEY"]
+OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
+
 pc = Pinecone(api_key=PINECONE_API_KEY)
 client = OpenAI()
 
@@ -33,7 +36,7 @@ pinecone_utility = PineconeUtility(index)
 
 
 MAX_EMAILS = 100 # TODO INCREASE AFTER TESTING
-K_MAILS_TO_RETURN = 5
+K_MAILS_TO_RETURN = 10
 
 
 if "user_email" in st.session_state and st.session_state.user_email is not None:

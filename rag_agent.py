@@ -19,8 +19,12 @@ from dotenv import load_dotenv
 load_dotenv()
 from safe_constants import SCOPES
 
-PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+# PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
+# OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+PINECONE_API_KEY = st.secrets["PINECONE_API_KEY"]
+OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
+
+
 pc = Pinecone(api_key=PINECONE_API_KEY)
 openai_client = OpenAI()
 
