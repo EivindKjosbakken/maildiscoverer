@@ -7,3 +7,4 @@ google-auth-oauthlib
 streamlit
 python-dotenv
 tqdm
+langchain
