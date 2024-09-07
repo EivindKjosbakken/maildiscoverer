@@ -72,27 +72,43 @@ def authorize_gmail_api():
           # Generate URL for request to Google's OAuth 2.0 server.
           # Use kwargs to set optional request parameters.
           authorization_url, state = flow.authorization_url(
-              # Recommended, enable offline access so that you can refresh an access token without
-              # re-prompting the user for permission. Recommended for web server apps.
               access_type='offline',
-              # Optional, enable incremental authorization. Recommended as a best practice.
               include_granted_scopes='true',
-              # Optional, set prompt to 'consent' will prompt the user for consent
               prompt='consent')
           
           # Redirect user to Google's OAuth 2.0 server
           st.markdown(f"[Click here to authorize the app]({authorization_url})")
           
           # creds = flow.run_local_server(port=8080) # NOTE For local
+          logger.info("\n\nGEtting auth code\n\n")
+          auth_code = st.experimental_get_query_params().get('code')
+          logger.info(f"\nAUTH CODE {auth_code}\n")
+          if auth_code:
+              # Fetch the token using the authorization code
+              flow.fetch_token(code=auth_code[0])
+
+              # Get the credentials
+              creds = flow.credentials
+
+              # Save the credentials for future use
+              with open('token.json', 'w') as token_file:
+                  token_file.write(creds.to_json())
+              st.success("Authorization successful! Credentials have been saved.")
+
+
         # Save the credentials for the next run
         if (creds is not None):
           logger.info(f"\nCREDS {creds}\n")
           with open("token.json", "w") as token: 
             token.write(creds.to_json())
+          # get user email
+          user_email = get_user_info(creds)
+          st.session_state.user_email = user_email
+
         else: logger.info("\nNo credentials were returned\n")
-      # get user email
-      user_email = get_user_info(creds)
-      st.session_state.user_email = user_email
+
+
+
       return creds
 
 
