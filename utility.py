@@ -88,13 +88,13 @@ def authorize_gmail_api():
                 font-size: 16px;
                 border-radius: 5px;
                 margin-top: 5px; /* Reduce space above the button */
-                margin-bottom: 5px; /* Reduce space above the button */
+                margin-bottom: 5px; /* Reduce space below the button */
             }}
             .custom-button:hover {{
                 background-color: #45a049;
             }}
             </style>
-            <a href="{authorization_url}" target="_self" class="custom-button">Authorize with Google</a>
+            <a href="{authorization_url}" target="_blank" class="custom-button">Authorize with Google</a>
             """,
             unsafe_allow_html=True
         )
