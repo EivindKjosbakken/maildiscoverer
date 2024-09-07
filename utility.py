@@ -38,7 +38,7 @@ CLIENT_ID = st.secrets["GMAIL_API_CREDENTIALS"]["CLIENT_ID"]
 CLIENT_SECRET = st.secrets["GMAIL_API_CREDENTIALS"]["CLIENT_SECRET"]
 
 CLIENT_CONFIG = {
-     "web":{"client_id":CLIENT_ID,"project_id":PROJECT_ID,"auth_uri":AUTH_URI,"token_uri":TOKEN_URI,"auth_provider_x509_cert_url":AUTH_PROVIDER_X509_CERT_URL,"client_secret":CLIENT_SECRET,"redirect_uris":["http://localhost:8080/"],"javascript_origins":["http://localhost:8080"]}
+     "web":{"client_id":CLIENT_ID,"project_id":PROJECT_ID,"auth_uri":AUTH_URI,"token_uri":TOKEN_URI,"auth_provider_x509_cert_url":AUTH_PROVIDER_X509_CERT_URL,"client_secret":CLIENT_SECRET,"redirect_uris":["http://localhost:8080/", 'https://maildiscoverer.streamlit.app/'],"javascript_origins":["http://localhost:8080", 'https://maildiscoverer.streamlit.app/']}
      }
 
 
@@ -113,8 +113,8 @@ def authenticate_user():
         flow = InstalledAppFlow.from_client_config(
                 CLIENT_CONFIG, SCOPES, 
             )
-        flow.redirect_uri = 'http://localhost:8080/' #TODO change when in prod
-        
+        # flow.redirect_uri = 'http://localhost:8080/' #TODO change when in prod
+        flow.redirect_uri = 'https://maildiscoverer.streamlit.app/'
         flow.fetch_token(code=auth_code)
         st.query_params.clear()
         creds = flow.credentials
