@@ -62,9 +62,23 @@ def authorize_gmail_api():
           flow = InstalledAppFlow.from_client_config(
               CLIENT_CONFIG, SCOPES
           )
+          flow.redirect_uri = 'https://maildiscoverer.streamlit.app/'
+
+          # Generate URL for request to Google's OAuth 2.0 server.
+          # Use kwargs to set optional request parameters.
+          authorization_url, state = flow.authorization_url(
+              # Recommended, enable offline access so that you can refresh an access token without
+              # re-prompting the user for permission. Recommended for web server apps.
+              access_type='offline',
+              # Optional, enable incremental authorization. Recommended as a best practice.
+              include_granted_scopes='true',
+              # Optional, set prompt to 'consent' will prompt the user for consent
+              prompt='consent')
           
-          # creds = flow.run_local_server(port=8080)
-          creds = flow.run_local_server(bind_addr="0.0.0.0", open_browser=False, port=8080)
+          # Redirect user to Google's OAuth 2.0 server
+          st.markdown(f"[Click here to authorize the app]({authorization_url})")
+          
+          # creds = flow.run_local_server(port=8080) # NOTE For local
         # Save the credentials for the next run
         with open("token.json", "w") as token: 
           token.write(creds.to_json())
