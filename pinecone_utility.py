@@ -2,7 +2,10 @@ import hashlib
 from tqdm.auto import tqdm
 import streamlit as st
 from googleapiclient.discovery import build
+import base64
+
 from rag_agent import RagAgent
+from safe_constants import MAX_CHARACTER_LENGTH_EMAIL
 
 import logging
 logging.basicConfig(level=logging.INFO)
@@ -25,6 +28,8 @@ class PineconeUtility():
 		Returns:
 		- short_id (str): The generated short ID.
 		"""
+		if content is None or content == "":
+			return None
 		hash_obj = hashlib.sha256()
 		hash_obj.update(content.encode("utf-8"))
 		return hash_obj.hexdigest()
@@ -46,12 +51,13 @@ class PineconeUtility():
 		data_with_metadata = []
 
 		for doc, embedding in zip(documents, doc_embeddings):
-			doc_text = doc["snippet"]
+			doc_text = doc["text"]
 			doc_date = doc["date"]
 			doc_sender = doc["from"]
 			doc_subject = doc["subject"]
 			doc_email_link = doc["email_link"]
 
+			if doc_text is None or doc_text == "": continue
 
 			# Generate a unique ID based on the text content
 			doc_id = self._generate_short_id(doc_text)
@@ -81,6 +87,22 @@ class PineconeUtility():
 		"""
 		index.upsert(vectors=data_with_metadata)
 
+
+	import base64
+
+	def _get_email_body(self, msg):
+		if 'parts' in msg['payload']:
+			# The email has multiple parts (possibly plain text and HTML)
+			for part in msg['payload']['parts']:
+				if part['mimeType'] == 'text/plain':  # Look for plain text
+					body = part['body']['data']
+					return base64.urlsafe_b64decode(body).decode('utf-8')
+		else:
+			# The email might have a single part, like plain text or HTML
+			body = msg['payload']['body'].get('data')
+			if body:
+				return base64.urlsafe_b64decode(body).decode('utf-8')
+		return None  # In case no plain text is found
 
 	# Function to list emails with a max limit and additional details
 	def _list_emails_with_details(self, service, max_emails=100):
@@ -112,10 +134,14 @@ class PineconeUtility():
 			# Fetch full email details
 			msg = service.users().messages().get(userId='me', id=email['id']).execute()
 			headers = msg['payload']['headers']
+
+			email_text = self._get_email_body(msg)
+			if email_text is None or email_text=="": continue
+			if len(email_text) >= MAX_CHARACTER_LENGTH_EMAIL: email_text = email_text[:MAX_CHARACTER_LENGTH_EMAIL]  # Truncate long emails
 			
 			# Extract date, sender, and subject from headers
 			email_data = {
-				'snippet': msg.get('snippet', ''),
+				"text": email_text,
 				'id': msg['id'],
 				'date': next((header['value'] for header in headers if header['name'] == 'Date'), None),
 				'from': next((header['value'] for header in headers if header['name'] == 'From'), None),
@@ -144,9 +170,9 @@ class PineconeUtility():
 		embeddings = []
 		for idx, email in tqdm(enumerate(emails), desc="Creating embeddings"):
 			status_text.text(f"Creating embedding {idx + 1} of {len(emails)}")
-			if email["snippet"] is None or email["snippet"] == "": continue
+			if email["text"] is None or email["text"] == "": continue
 			try:
-				embeddings.append(self.rag_agent.get_embedding(email["snippet"]))
+				embeddings.append(self.rag_agent.get_embedding(email["text"]))
 				# Update the progress bar and status text
 				progress_bar.progress((idx + 1) / len(emails))  # Progress bar update
 			except:
@@ -155,3 +181,5 @@ class PineconeUtility():
 			
 		data_with_meta_data = self._combine_vector_and_text(documents=emails, doc_embeddings=embeddings, user_email=user_email) 
 		self._upsert_data_to_pinecone(index, data_with_metadata=data_with_meta_data)
+
+		return True
