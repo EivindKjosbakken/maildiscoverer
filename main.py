@@ -67,7 +67,7 @@ if "flow" not in st.session_state:
 
 
 # Logout function
-def logout():
+def logout(is_from_login_func=False):
     """Logs the user out by deleting the token and clearing session data."""
     # st.experimental_set_query_params()
 
@@ -76,12 +76,11 @@ def logout():
 
     if os.path.exists("token.json"):
         os.remove("token.json")
-        st.success("Logged out successfully!")
-    else:
-        st.warning("You are not logged in.")
+
+    if not is_from_login_func: st.success("Logged out successfully!")
 
 def login():
-    logout() # ensure clean slate before logging in
+    logout(is_from_login_func=True) # ensure clean slate before logging in
     authorize_gmail_api()
 
 
