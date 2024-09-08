@@ -185,7 +185,7 @@ def render_mail(selected_mail):
             margin-top: 20px;
             display: inline-block;
             background-color: #ff8c00; /* Orange background */
-            color: white; /* White text */
+            color: white !important; /* Ensure white text */
             padding: 10px 20px;
             text-align: center;
             border-radius: 8px;
