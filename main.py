@@ -40,7 +40,8 @@ K_MAILS_TO_RETURN = 10
 
 
 if "user_email" in st.session_state and st.session_state.user_email is not None:
-    st.title(f"Hello {st.session_state.user_email}")
+    # st.title(f"Hello {st.session_state.user_email}")
+    st.title(f"Hello ...@gmail.com")
 else:
     st.title("Welcome to the Email Assistant")
 
@@ -69,14 +70,13 @@ if "flow" not in st.session_state:
 # Logout function
 def logout(is_from_login_func=False):
     """Logs the user out by deleting the token and clearing session data."""
-    # st.experimental_set_query_params()
+    st.query_params.clear()
 
     st.session_state.user_email = None
     st.session_state.creds = None
 
     if os.path.exists("token.json"):
         os.remove("token.json")
-
     if not is_from_login_func: st.success("Logged out successfully!")
 
 def login():
@@ -97,7 +97,6 @@ if st.button("Login"):
 
 if st.button("Logout"):
     logout()
-    st.query_params.clear()
     st.rerun()
 
 
